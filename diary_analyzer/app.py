@@ -660,5 +660,5 @@ if page == "Suggestions":
 st.markdown("---")
 
 st.caption(
-    "MindTrack • Lightweight Mental Health NLP Analyzer"
+    "MindTrack • Mental Health Analyzer"
 )
