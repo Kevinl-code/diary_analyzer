@@ -18,6 +18,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+if "df" not in st.session_state:
+    st.session_state.df = None
+
+if "analyzed" not in st.session_state:
+    st.session_state.analyzed = False
+
+if "filename" not in st.session_state:
+    st.session_state.filename = ""
+
 # =========================================================
 # LIGHTWEIGHT NLTK
 # =========================================================
@@ -283,17 +292,25 @@ page = st.sidebar.radio(
         "Suggestions"
     ]
 )
+st.sidebar.markdown("---")
 
-# =========================================================
-# GLOBAL VARIABLES
-# =========================================================
+if st.session_state.get("analyzed"):
+    st.sidebar.success("Analysis Ready")
 
-uploaded_file = None
-df = None
+    st.sidebar.write(
+        f"📄 {st.session_state.get('filename')}"
+    )
 
-# =========================================================
-# HOME PAGE
-# =========================================================
+    if st.sidebar.button("🗑 Clear Analysis"):
+        st.session_state.get("df")
+        st.session_state.analyzed = False
+        st.session_state.filename = ""
+
+        st.rerun()
+
+else:
+
+    st.sidebar.info("No diary analyzed yet")
 
 if page == "Home":
 
@@ -305,6 +322,10 @@ if page == "Home":
     Upload your personal diary entries and discover emotional trends,
     recurring stress patterns, and wellness insights through lightweight NLP.
     """)
+
+    # =========================================================
+    # FILE UPLOAD
+    # =========================================================
 
     st.subheader("📁 Upload Diary CSV")
 
@@ -319,37 +340,204 @@ if page == "Home":
     - entry
     """)
 
-    st.markdown("---")
+    # =========================================================
+    # ANALYZE BUTTON
+    # =========================================================
 
-    st.subheader("✨ Features")
+    analyze_btn = st.button("🔍 Analyze Diary")
 
-    col1, col2, col3 = st.columns(3)
+    # =========================================================
+    # PROCESS FILE
+    # =========================================================
+if uploaded_file is not None and analyze_btn:
 
-    with col1:
-        st.success("CSV Diary Upload")
+    try:
 
-    with col2:
-        st.success("Mood Tracking")
+        with st.spinner("Analyzing diary entries..."):
 
-    with col3:
-        st.success("Emotional Insights")
+            # =========================================================
+            # READ CSV
+            # =========================================================
 
-    col4, col5, col6 = st.columns(3)
+            df = pd.read_csv(uploaded_file)
 
-    with col4:
-        st.success("Word Analysis")
+            # =========================================================
+            # EMPTY CHECK
+            # =========================================================
 
-    with col5:
-        st.success("Mental Energy Score")
+            if df.empty:
 
-    with col6:
-        st.success("Wellness Suggestions")
+                st.error("CSV file contains no data.")
+                st.stop()
+
+            # =========================================================
+            # STANDARDIZE COLUMN NAMES
+            # =========================================================
+
+            df.columns = df.columns.str.lower().str.strip()
+
+            # =========================================================
+            # REQUIRED COLUMNS
+            # =========================================================
+
+            required_columns = ["date", "entry"]
+
+            for col in required_columns:
+
+                if col not in df.columns:
+
+                    st.error(
+                        f"Missing required column: {col}"
+                    )
+
+                    st.stop()
+
+            # =========================================================
+            # REMOVE EMPTY ENTRIES
+            # =========================================================
+
+            df = df.dropna(subset=["entry"])
+
+            df["entry"] = df["entry"].astype(str)
+
+            df = df[df["entry"].str.strip() != ""]
+
+            # =========================================================
+            # DATE FORMAT
+            # =========================================================
+
+            df["date"] = pd.to_datetime(
+                df["date"],
+                errors="coerce"
+            )
+
+            df = df.dropna(subset=["date"])
+
+            df["date"] = df["date"].dt.strftime(
+                "%Y-%m-%d"
+            )
+
+            # =========================================================
+            # LIMIT LARGE FILES
+            # =========================================================
+
+            if len(df) > 500:
+
+                st.warning(
+                    "Large dataset detected. Using first 500 rows."
+                )
+
+                df = df.head(500)
+
+            # =========================================================
+            # CLEAN TEXT
+            # =========================================================
+
+            def clean_text(text):
+
+                text = text.lower()
+
+                text = re.sub(
+                    r"[^a-zA-Z ]",
+                    "",
+                    text
+                )
+
+                words = text.split()
+
+                words = [
+                    word for word in words
+                    if word not in stop_words
+                ]
+
+                return " ".join(words)
+
+            df["cleaned"] = df["entry"].apply(
+                clean_text
+            )
+
+            # =========================================================
+            # SENTIMENT
+            # =========================================================
+
+            def get_sentiment(text):
+
+                polarity = TextBlob(
+                    text
+                ).sentiment.polarity
+
+                if polarity > 0:
+
+                    return "Positive"
+
+                elif polarity < 0:
+
+                    return "Negative"
+
+                else:
+
+                    return "Neutral"
+
+            df["sentiment"] = df["entry"].apply(
+                get_sentiment
+            )
+
+            # =========================================================
+            # SCORE
+            # =========================================================
+
+            df["score"] = df["entry"].apply(
+                lambda x:
+                TextBlob(x).sentiment.polarity
+            )
+
+            # =========================================================
+            # SORT DATE
+            # =========================================================
+
+            df = df.sort_values("date")
+
+            # =========================================================
+            # SAVE SESSION
+            # =========================================================
+
+            st.session_state.df = df
+
+            st.session_state.analyzed = True
+
+            st.session_state.filename = uploaded_file.name
+
+            st.success(
+                "Diary analysis completed successfully!"
+            )
+
+    except pd.errors.EmptyDataError:
+
+        st.error(
+            "Uploaded CSV file is empty."
+        )
+
+    except UnicodeDecodeError:
+
+        st.error(
+            "Encoding issue. Save CSV as UTF-8."
+        )
+
+    except Exception as e:
+
+        st.error(
+            f"Error processing file: {e}"
+        )
+            # =========================================================
+    # SHOW SAMPLE CSV
+    # =========================================================
 
     st.markdown("---")
 
     st.subheader("📄 Example CSV Format")
 
     sample_df = pd.DataFrame({
+
         "date": [
             "2026-05-01",
             "2026-05-02",
@@ -367,99 +555,22 @@ if page == "Home":
         sample_df,
         use_container_width=True
     )
-
 # =========================================================
-# FILE PROCESSING
+# ANALYSIS STATUS
 # =========================================================
 
-if uploaded_file is not None:
+if st.session_state.analyzed:
 
-    try:
+    st.markdown("---")
 
-        with st.spinner("🔍 Processing diary entries..."):
+    st.success(
+        f"Current Analysis Loaded: {st.session_state.filename}"
+    )
+# =========================================================
+# GLOBAL DATAFRAME ACCESS
+# =========================================================
 
-            df = pd.read_csv(uploaded_file)
-
-            # =========================================================
-            # VALIDATION
-            # =========================================================
-
-            required_columns = ["date", "entry"]
-
-            for col in required_columns:
-
-                if col not in df.columns:
-
-                    st.error(f"Missing required column: {col}")
-                    st.stop()
-
-            # =========================================================
-            # LIMIT LARGE FILES
-            # =========================================================
-
-            if len(df) > 500:
-
-                st.warning(
-                    "Large dataset detected. Only first 500 entries loaded for faster performance."
-                )
-
-                df = df.head(500)
-
-            # =========================================================
-            # CLEAN TEXT
-            # =========================================================
-
-            def clean_text(text):
-
-                text = str(text).lower()
-
-                text = re.sub(r'[^a-zA-Z ]', '', text)
-
-                words = text.split()
-
-                words = [
-                    word for word in words
-                    if word not in stop_words
-                ]
-
-                return " ".join(words)
-
-            df["cleaned"] = df["entry"].apply(clean_text)
-
-            # =========================================================
-            # SENTIMENT ANALYSIS
-            # =========================================================
-
-            def get_sentiment(text):
-
-                score = TextBlob(text).sentiment.polarity
-
-                if score > 0:
-                    return "Positive"
-
-                elif score < 0:
-                    return "Negative"
-
-                else:
-                    return "Neutral"
-
-            df["sentiment"] = df["entry"].apply(get_sentiment)
-
-            # =========================================================
-            # SENTIMENT SCORE
-            # =========================================================
-
-            df["score"] = df["entry"].apply(
-                lambda x: TextBlob(x).sentiment.polarity
-            )
-
-    except pd.errors.EmptyDataError:
-
-        st.error("Uploaded CSV file is empty.")
-
-    except Exception as e:
-
-        st.error(f"Error while processing file: {e}")
+df = st.session_state.get("df")
 
 # =========================================================
 # DIARY ANALYSIS PAGE
