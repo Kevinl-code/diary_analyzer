@@ -9,7 +9,7 @@ from nltk.corpus import stopwords
 
 st.set_page_config(
     page_title="MindTrack",
-    page_icon="diary_analyzer/Gemini_Generated_Image_8pz3ij8pz3ij8pz3.png",
+    page_icon="assets/logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -267,6 +267,11 @@ MOBILE RESPONSIVE
 # =========================================================
 # SIDEBAR
 # =========================================================
+
+st.sidebar.image(
+    "assets/logo.png",
+    width=120
+)
 
 st.sidebar.title("🧭 Navigation")
 
