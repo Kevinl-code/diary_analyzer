@@ -9,7 +9,7 @@ from nltk.corpus import stopwords
 
 st.set_page_config(
     page_title="MindTrack",
-    page_icon="🧠",
+    page_icon="https://github.com/Kevinl-code/diary_analyzer/blob/main/diary_analyzer/Gemini_Generated_Image_8pz3ij8pz3ij8pz3.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
