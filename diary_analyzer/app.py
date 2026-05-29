@@ -7,10 +7,6 @@ import re
 import nltk
 from nltk.corpus import stopwords
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
-
 st.set_page_config(
     page_title="MindTrack",
     page_icon="🧠",
@@ -27,20 +23,11 @@ if "analyzed" not in st.session_state:
 if "filename" not in st.session_state:
     st.session_state.filename = ""
 
-# =========================================================
-# LIGHTWEIGHT NLTK
-# =========================================================
-
 try:
     stop_words = set(stopwords.words("english"))
-
 except:
     nltk.download("stopwords")
     stop_words = set(stopwords.words("english"))
-
-# =========================================================
-# PROFESSIONAL UI CSS
-# =========================================================
 
 st.markdown("""
 <style>
@@ -317,18 +304,13 @@ if page == "Home":
 
     st.title("🧠 MindTrack")
 
-    st.subheader("Mental Health Diary NLP Analyzer")
+    st.subheader("Mental Health Analyzer")
 
     st.write("""
     Upload your personal diary entries and discover emotional trends,
     recurring stress patterns, and wellness insights through lightweight NLP.
     """)
-
-    # =========================================================
-    # FILE UPLOAD
-    # =========================================================
-
-    st.subheader("📁 Upload Diary CSV")
+    st.subheader("📁 Upload Diary Entries as CSV")
 
     uploaded_file = st.file_uploader(
         "Choose CSV File",
@@ -340,47 +322,19 @@ if page == "Home":
     - date
     - entry
     """)
-
-    # =========================================================
-    # ANALYZE BUTTON
-    # =========================================================
-
+    
     analyze_btn = st.button("🔍 Analyze Diary")
-
-    # =========================================================
-    # PROCESS FILE
-    # =========================================================
     if uploaded_file is not None and analyze_btn:
-    
         try:
-    
             with st.spinner("Analyzing diary entries..."):
-    
-                # =========================================================
-                # READ CSV
-                # =========================================================
-    
                 df = pd.read_csv(uploaded_file)
-    
-                # =========================================================
-                # EMPTY CHECK
-                # =========================================================
-    
+
                 if df.empty:
     
                     st.error("CSV file contains no data.")
                     st.stop()
     
-                # =========================================================
-                # STANDARDIZE COLUMN NAMES
-                # =========================================================
-    
                 df.columns = df.columns.str.lower().str.strip()
-    
-                # =========================================================
-                # REQUIRED COLUMNS
-                # =========================================================
-    
                 required_columns = ["date", "entry"]
     
                 for col in required_columns:
@@ -392,36 +346,19 @@ if page == "Home":
                         )
     
                         st.stop()
-    
-                # =========================================================
-                # REMOVE EMPTY ENTRIES
-                # =========================================================
-    
+                        
                 df = df.dropna(subset=["entry"])
-    
                 df["entry"] = df["entry"].astype(str)
-    
                 df = df[df["entry"].str.strip() != ""]
-    
-                # =========================================================
-                # DATE FORMAT
-                # =========================================================
-    
                 df["date"] = pd.to_datetime(
                     df["date"],
                     errors="coerce"
                 )
-    
                 df = df.dropna(subset=["date"])
     
                 df["date"] = df["date"].dt.strftime(
                     "%Y-%m-%d"
                 )
-    
-                # =========================================================
-                # LIMIT LARGE FILES
-                # =========================================================
-    
                 if len(df) > 500:
     
                     st.warning(
@@ -429,10 +366,7 @@ if page == "Home":
                     )
     
                     df = df.head(500)
-    
-                # =========================================================
-                # CLEAN TEXT
-                # =========================================================
+
     
                 def clean_text(text):
     
@@ -457,10 +391,6 @@ if page == "Home":
                     clean_text
                 )
     
-                # =========================================================
-                # SENTIMENT
-                # =========================================================
-    
                 def get_sentiment(text):
     
                     polarity = TextBlob(
@@ -483,31 +413,18 @@ if page == "Home":
                     get_sentiment
                 )
     
-                # =========================================================
-                # SCORE
-                # =========================================================
-    
                 df["score"] = df["entry"].apply(
                     lambda x:
                     TextBlob(x).sentiment.polarity
                 )
-    
-                # =========================================================
-                # SORT DATE
-                # =========================================================
+
     
                 df = df.sort_values("date")
     
-                # =========================================================
-                # SAVE SESSION
-                # =========================================================
     
                 st.session_state.df = df
-    
                 st.session_state.analyzed = True
-    
                 st.session_state.filename = uploaded_file.name
-    
                 st.success(
                     "Diary analysis completed successfully!"
                 )
@@ -529,36 +446,6 @@ if page == "Home":
             st.error(
                 f"Error processing file: {e}"
             )
-            # =========================================================
-    # SHOW SAMPLE CSV
-    # =========================================================
-
-    st.markdown("---")
-
-    st.subheader("📄 Example CSV Format")
-
-    sample_df = pd.DataFrame({
-
-        "date": [
-            "2026-05-01",
-            "2026-05-02",
-            "2026-05-03"
-        ],
-
-        "entry": [
-            "Feeling stressed because of workload",
-            "Today was peaceful and relaxing",
-            "Feeling anxious about exams"
-        ]
-    })
-
-    st.dataframe(
-        sample_df,
-        use_container_width=True
-    )
-# =========================================================
-# ANALYSIS STATUS
-# =========================================================
 
 if st.session_state.analyzed:
 
@@ -567,87 +454,47 @@ if st.session_state.analyzed:
     st.success(
         f"Current Analysis Loaded: {st.session_state.filename}"
     )
-# =========================================================
-# GLOBAL DATAFRAME ACCESS
-# =========================================================
 
 df = st.session_state.get("df")
 
-# =========================================================
-# DIARY ANALYSIS PAGE
-# =========================================================
-
 if page == "Diary Analysis":
-
     st.title("📄 Diary Analysis")
 
     if df is None:
-
         st.warning("Please upload a CSV file in Home page.")
-
     else:
-
         st.subheader("Uploaded Diary Data")
-
         st.dataframe(
             df[["date", "entry", "sentiment"]],
             use_container_width=True
         )
-
         st.markdown("---")
-
         total_entries = len(df)
-
         positive_count = len(
             df[df["sentiment"] == "Positive"]
         )
-
         negative_count = len(
             df[df["sentiment"] == "Negative"]
         )
-
         neutral_count = len(
             df[df["sentiment"] == "Neutral"]
         )
-
         mental_energy = round(
             (positive_count / total_entries) * 100,
             2
         )
-
         col1, col2, col3, col4, col5 = st.columns(5)
-
         col1.metric("Entries", total_entries)
-
         col2.metric("Positive", positive_count)
-
         col3.metric("Negative", negative_count)
-
         col4.metric("Neutral", neutral_count)
-
-        col5.metric(
-            "Mental Energy",
-            f"{mental_energy}%"
-        )
-
-# =========================================================
-# INSIGHTS PAGE
-# =========================================================
-
+        col5.metric("Mental Energy",f"{mental_energy}%")
+        
 if page == "Insights":
-
     st.title("📊 Emotional Insights")
-
     if df is None:
-
         st.warning("Please upload a CSV file in Home page.")
-
     else:
-
-        # =========================================================
-        # MOOD TREND
-        # =========================================================
-
         st.subheader("📈 Mood Trend")
 
         line_fig = px.line(
@@ -668,10 +515,6 @@ if page == "Insights":
             use_container_width=True
         )
 
-        # =========================================================
-        # EMOTION DISTRIBUTION
-        # =========================================================
-
         st.subheader("🥧 Emotion Distribution")
 
         pie_data = df["sentiment"].value_counts()
@@ -690,10 +533,6 @@ if page == "Insights":
             pie_fig,
             use_container_width=True
         )
-
-        # =========================================================
-        # COMMON WORDS
-        # =========================================================
 
         st.subheader("🔍 Common Emotional Words")
 
@@ -723,10 +562,6 @@ if page == "Insights":
             use_container_width=True
         )
 
-# =========================================================
-# SUGGESTIONS PAGE
-# =========================================================
-
 if page == "Suggestions":
 
     st.title("💡 Wellness Suggestions")
@@ -740,10 +575,6 @@ if page == "Suggestions":
         text_data = " ".join(df["cleaned"])
 
         suggestions = []
-
-        # =========================================================
-        # RULE-BASED SUGGESTIONS
-        # =========================================================
 
         if "stress" in text_data:
 
@@ -775,10 +606,7 @@ if page == "Suggestions":
                 "Engage in activities you enjoy and avoid isolation."
             )
 
-        # =========================================================
-        # MENTAL ENERGY
-        # =========================================================
-
+    
         positive_count = len(
             df[df["sentiment"] == "Positive"]
         )
@@ -828,10 +656,6 @@ if page == "Suggestions":
             for suggestion in suggestions:
 
                 st.success(suggestion)
-
-# =========================================================
-# FOOTER
-# =========================================================
 
 st.markdown("---")
 
